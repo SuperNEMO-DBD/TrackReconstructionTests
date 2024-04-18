@@ -75,7 +75,7 @@ let
 	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / 5mm", label ="rms data = $(rms(df.dz))", c=2)
 	p3 = histogram2d(df.dy, df.dz, bins = (-200:200,-200:200), aspect =1, xlabel ="dy", ylabel="dz", title="2D Histogram")
 	plot(p1, p2, p3, layout=grid(3,1), size = (800,1200), thickness_scaling= 1.4, dpi =200)
-	savefig("CAT_2nubb.png")
+	savefig("../plots/CAT_2nubb.png")
 	current()
 end
 
@@ -113,27 +113,8 @@ begin
 	plot!(-235:0.1:235, x-> fit_dy(fit_mu, fit_sigma, x), label="fit Cauchy:\nmu=$(round(fit_mu,sigdigits=3)), sigma=$(round(fit_sigma, sigdigits=3))")
 end
 
-# ╔═╡ ea547b10-a03e-4d78-ac0a-ee979a4a7f62
-@model function model_dy_gaus(dy)
-	μ ~ Normal(0, 0.1)
-	σ ~ Uniform(1e-5, 1e3)
-	dy .~ Logistic(μ, σ)
-end
-
-# ╔═╡ b5757acc-e9fe-420a-bc62-17a34a31fc64
-chain2= Turing.sample(model_dy_gaus(df.dy), NUTS(), MCMCThreads(), 1000, 2)
-
-# ╔═╡ b6a5384e-29fa-400a-802a-239e4e5d4841
-plot(chain2)
-
-# ╔═╡ 0eec72c2-0274-4b8c-b81e-db6707090ee5
-fit_mu2, fit_sigma2 = mean(chain2[:,1,:]), mean(chain2[:,2,:])
-
-# ╔═╡ d105d56d-804a-4652-bf14-42189e98f5b4
-begin
-	plot(normalize(h1dy, mode=:pdf), label="data", lw =0)
-	plot!(-235:0.1:235, x-> pdf(Normal(fit_mu2, fit_sigma2), x), label="fit logistic:\nmu=$(round(fit_mu2,sigdigits=3)), sigma=$(round(fit_sigma2, sigdigits=3))")
-end
+# ╔═╡ 2a622822-125d-4be0-8e99-9fae0e612073
+savefig("../plots/CAT_dy_cauchy_fit.png")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2511,10 +2492,6 @@ version = "0.34.1+0"
 # ╠═5d3467dc-81a4-448f-b7c7-f2e2d97fbab2
 # ╠═5ee0d7bb-0209-4297-b731-6763d604bf8a
 # ╠═6b2c7b00-0372-473c-b064-62451b1e817f
-# ╠═ea547b10-a03e-4d78-ac0a-ee979a4a7f62
-# ╠═b5757acc-e9fe-420a-bc62-17a34a31fc64
-# ╠═b6a5384e-29fa-400a-802a-239e4e5d4841
-# ╠═0eec72c2-0274-4b8c-b81e-db6707090ee5
-# ╠═d105d56d-804a-4652-bf14-42189e98f5b4
+# ╠═2a622822-125d-4be0-8e99-9fae0e612073
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
