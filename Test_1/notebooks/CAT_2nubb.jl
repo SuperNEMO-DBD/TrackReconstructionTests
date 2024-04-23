@@ -54,7 +54,9 @@ md"""
 # ╔═╡ 4416fbcd-9b42-482d-9c50-3ce262bcb4c9
 begin
 	# extract reconstructed vertex positions into dataframe
-	df_raw = LazyTree(f2nu, "tree", ["x1Escaped","y1Escaped","z1Escaped","x2Escaped","y2Escaped","z2Escaped", "reconstructedEnergy1", "reconstructedEnergy2"]) |> DataFrame
+	df_raw = LazyTree(f2nu, "tree", [
+		"y1Reconstructed","z1Reconstructed","y2Reconstructed","z2Reconstructed",
+	]) |> DataFrame
 	describe(df_raw)
 end
 
@@ -81,8 +83,8 @@ md"""
 # ╔═╡ 01de8d24-b00b-4586-af68-c774012fbc94
 # transform df to get Δy, Δz, d data
 begin
-	df_raw.dy = df_raw.y1Escaped .- df_raw.y2Escaped
-	df_raw.dz = df_raw.z1Escaped .- df_raw.z2Escaped
+	df_raw.dy = df_raw.y1Reconstructed .- df_raw.y2Reconstructed
+	df_raw.dz = df_raw.z1Reconstructed .- df_raw.z2Reconstructed
 	df_raw.dyz = @. sqrt( df_raw.dy^2 + df_raw.dz^2)
 	df_raw
 end
@@ -124,6 +126,9 @@ We filter these values.
 # drop outliers:
 df = filter(row -> -240.0 < row.dy < 240.0 &&  -220.0 < row.dz < 220.0, df_raw);
 
+# ╔═╡ 07d5bdea-ac7e-4d53-8915-48981535954f
+describe(df)
+
 # ╔═╡ 920de5f0-d74a-4eda-ab35-3b4b15b16014
 md"""
 # Now we can visualize raw data:
@@ -152,8 +157,8 @@ end
 
 # ╔═╡ 26b0aaf0-a9b3-4b65-894f-07d54d19f0a2
 let
-	p1 = plot(h1dy, xlabel = "dy / mm", ylabel ="counts / $(bw) mm", label ="rms data = $(rms(df.dy))", c=1, legend=:outertop, lw = ifelse(bw==1, 0, 1))
-	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / $(bw) mm", label ="rms data = $(rms(df.dz))", c=2,legend=:outertop, lw = ifelse(bw==1, 0, 1))
+	p1 = plot(h1dy, xlabel = "dy / mm", ylabel ="counts / $(bw) mm", label ="", c=1, legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT dy")
+	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / $(bw) mm", label ="", c=2,legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT dz")
 	p3 = histogram2d(df.dy, df.dz, bins = (-240:bw:240,-240:bw:240), aspect =1, xlabel ="dy", ylabel="dz", title="2D Histogram", colorbar_scale=:log10)
 
 	plot(p1, p2, p3, layout=grid(2,2), size = (700,600), thickness_scaling= 1.1, dpi =200)
@@ -224,18 +229,18 @@ md"""
 # ╔═╡ f8636e78-b7b8-460e-9fac-21640d1293cf
 begin
 	# sample with metropolis-hastings, we create 10^4 samples per chain, 4 chains:
-	chain_dy_L = Turing.sample(model_Laplace(df.dy), MH(), 1000);
-	chain_dy_C = Turing.sample(model_Cauchy(df.dy), MH(), 1000);
-	chain_dy_N = Turing.sample(model_Normal(df.dy), MH(), 1000);
+	chain_dy_L = Turing.sample(model_Laplace(df.dy), MH(), 10000);
+	chain_dy_C = Turing.sample(model_Cauchy(df.dy), MH(), 10000);
+	chain_dy_N = Turing.sample(model_Normal(df.dy), MH(), 10000);
 	nothing # to show no output
 end
 
 # ╔═╡ f9d85343-f5f0-4ed1-bfe5-5747e39d677e
 begin
 	# sample with metropolis-hastings, we create 10^4 samples per chain, 4 chains:
-	chain_dz_L = Turing.sample(model_Laplace(df.dz), MH(), 1000);
-	chain_dz_C = Turing.sample(model_Cauchy(df.dz), MH(), 1000);
-	chain_dz_N = Turing.sample(model_Normal(df.dz), MH(), 1000);
+	chain_dz_L = Turing.sample(model_Laplace(df.dz), MH(), 10000);
+	chain_dz_C = Turing.sample(model_Cauchy(df.dz), MH(), 10000);
+	chain_dz_N = Turing.sample(model_Normal(df.dz), MH(), 10000);
 	nothing # to show no output
 end
 
@@ -277,9 +282,38 @@ begin
 	fit_function_N( mu, sigma, x ) = pdf( Normal(mu, sigma), x )
 end
 
-# ╔═╡ 9197dcdc-1bb1-4d77-8ce2-ed2c03ee0d18
+# ╔═╡ 69964897-74bf-48b7-b88e-604e2607dca1
 md"""
-# To evaluate the quality of the fits we calculate the ``r^2``
+# Finally we can visialize the results:
+First dy
+"""
+
+# ╔═╡ 1132b508-30c2-4baf-a152-68656d777e2a
+savefig( "../plots/CAT_dy_fit.png" )
+
+# ╔═╡ a2615c9b-1c40-4089-8eab-607b5272d999
+md"""
+#
+Now dz
+"""
+
+# ╔═╡ 2568f1d9-c8c0-4ffb-9eef-c16fed8c2c02
+savefig( "../plots/CAT_dz_fit.png" )
+
+# ╔═╡ 9fb1af4d-f75b-4349-9c0c-e2ed59a26c7c
+md"""
+# Finally we find that the uncertainty on the CAT vertex reconstruction precision is:
+* ``68\% CI \approx (-30.0, 29.9)`` mm with rms_y = 36.2 mm 
+* ``68\% CI \approx (-28.7, 28.7)`` mm with rms_z = 36.7 mm 
+"""
+
+# ╔═╡ 34eb944c-93d5-4503-8d93-8c80e244a906
+md"""
+# Further studies:
+
+- It would be nice to investigate the uncertainty as a function of energy, escape direction w.r.t. foil (see Miro's thesis)
+- Maybe it's not the greatest idea in the world to fit the distribution, probably not much useful information is obtained this way, should it be enough to compare data quantiles? 
+
 """
 
 # ╔═╡ 76988721-9948-4bc3-819a-de1e62827010
@@ -297,12 +331,6 @@ function r2(fit_function, histogram)
 
     return 1-( SSres / SStot)
 end
-
-# ╔═╡ 69964897-74bf-48b7-b88e-604e2607dca1
-md"""
-# Finally we can visialize the results:
-First dy
-"""
 
 # ╔═╡ 7581177f-6990-43fd-b734-e5425045b31d
 with(gr()) do
@@ -342,15 +370,6 @@ with(gr()) do
 	ylabel!("counts / $(bw) mm")
 end
 
-# ╔═╡ 1132b508-30c2-4baf-a152-68656d777e2a
-savefig( "../plots/CAT_dy_fit.png" )
-
-# ╔═╡ a2615c9b-1c40-4089-8eab-607b5272d999
-md"""
-#
-Now dz
-"""
-
 # ╔═╡ 4d217f3a-340f-4edf-8f25-536ea0a6559e
 with(gr()) do
 	theme(:dao)
@@ -389,25 +408,6 @@ with(gr()) do
 	ylabel!("counts / $(bw) mm")
 end
 
-# ╔═╡ 2568f1d9-c8c0-4ffb-9eef-c16fed8c2c02
-savefig( "../plots/CAT_dz_fit.png" )
-
-# ╔═╡ 9fb1af4d-f75b-4349-9c0c-e2ed59a26c7c
-md"""
-# Finally we find that the uncertainty on the CAT vertex reconstruction precision is:
-* ``68\% CI \approx (-30.0, 29.9)`` mm with rms_y = 36.2 mm 
-* ``68\% CI \approx (-28.7, 28.7)`` mm with rms_z = 36.7 mm 
-"""
-
-# ╔═╡ 34eb944c-93d5-4503-8d93-8c80e244a906
-md"""
-# Further studies:
-
-- It would be nice to investigate the uncertainty as a function of energy, escape direction w.r.t. foil (see Miro's thesis)
-- Maybe it's not the greatest idea in the world to fit the distribution, probably not much useful information is obtained this way, should it be enough to compare data quantiles? 
-
-"""
-
 # ╔═╡ Cell order:
 # ╟─8d855d70-1557-49ae-b995-bd8d4cf7a455
 # ╟─e4e23a9c-cfbd-467b-a3a5-f2477fc66531
@@ -420,15 +420,16 @@ md"""
 # ╠═aed436eb-08ba-47af-9379-f0417b2636d6
 # ╟─384fedb4-db7e-401d-9b1c-0f83ce6b6070
 # ╠═4416fbcd-9b42-482d-9c50-3ce262bcb4c9
-# ╟─e7c17231-ab6f-406b-8603-95b6908d921d
-# ╟─9aa7fb83-e2d4-404c-aea8-a0c8b3740c71
+# ╠═e7c17231-ab6f-406b-8603-95b6908d921d
+# ╠═9aa7fb83-e2d4-404c-aea8-a0c8b3740c71
 # ╠═01de8d24-b00b-4586-af68-c774012fbc94
-# ╟─cc1e04d1-89bb-47b6-b518-2e785e8d9c61
+# ╠═cc1e04d1-89bb-47b6-b518-2e785e8d9c61
 # ╠═c1c26732-7dd3-478a-9ded-8baf49526e3b
-# ╟─cd289464-6616-4c05-ae84-42cee12bd4f5
+# ╠═cd289464-6616-4c05-ae84-42cee12bd4f5
 # ╠═6469d868-b94e-473e-8f40-7d17c4edfda9
-# ╟─aa42f3ba-fef3-44f4-a346-7a85d5148169
+# ╠═aa42f3ba-fef3-44f4-a346-7a85d5148169
 # ╠═9dadfd80-f852-4a6b-a0a7-0c4009781d26
+# ╠═07d5bdea-ac7e-4d53-8915-48981535954f
 # ╟─920de5f0-d74a-4eda-ab35-3b4b15b16014
 # ╠═1759b08f-ce37-4e87-b0dd-cfe6f05a3989
 # ╟─52b1a9aa-dfc5-4e25-aa22-8771e0a2ba0c
@@ -436,8 +437,8 @@ md"""
 # ╟─2852fc0e-d5b4-48d2-bfc7-f315edd84b59
 # ╠═26b0aaf0-a9b3-4b65-894f-07d54d19f0a2
 # ╟─f1335a10-8219-46f8-84ee-61c923efa0bd
-# ╟─7fc6f77c-c4cd-4eab-817e-078aca48b091
-# ╟─042caa7a-b290-455e-85bd-0235bab47b80
+# ╠═7fc6f77c-c4cd-4eab-817e-078aca48b091
+# ╠═042caa7a-b290-455e-85bd-0235bab47b80
 # ╠═bcc2cc51-5b09-4771-9845-39a61244744e
 # ╟─103406a2-97f6-4329-9bc6-b9cc4e333146
 # ╠═d5d9b097-0abc-4540-b0ed-4202958fecb9
@@ -452,8 +453,6 @@ md"""
 # ╟─6ac84871-0590-45c2-8593-736b119b7c32
 # ╠═eef3674e-efbf-4e23-88cc-6838c5628966
 # ╠═f978aae0-43c3-43c6-9bf3-f3f5e3aaee6f
-# ╟─9197dcdc-1bb1-4d77-8ce2-ed2c03ee0d18
-# ╠═76988721-9948-4bc3-819a-de1e62827010
 # ╟─69964897-74bf-48b7-b88e-604e2607dca1
 # ╠═7581177f-6990-43fd-b734-e5425045b31d
 # ╟─1132b508-30c2-4baf-a152-68656d777e2a
@@ -462,3 +461,4 @@ md"""
 # ╠═2568f1d9-c8c0-4ffb-9eef-c16fed8c2c02
 # ╠═9fb1af4d-f75b-4349-9c0c-e2ed59a26c7c
 # ╟─34eb944c-93d5-4503-8d93-8c80e244a906
+# ╠═76988721-9948-4bc3-819a-de1e62827010
