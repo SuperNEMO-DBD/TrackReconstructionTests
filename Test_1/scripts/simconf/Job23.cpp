@@ -10,11 +10,28 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 R__LOAD_LIBRARY(/pbs/home/m/mpetro/PROGRAMS/MiModule/lib/libMiModule.so);
 
 ////////////// Function used in script
 /////////////////////////////////////////////////////////////
+int first_step_in_gas(MiEvent*  _eve, int _trackID) // returns the step position of the hit_step when it first enters tracking gas
+{
+	for (int step = 0; step < _eve->getSD()->getvisuhitv()->size() ; step++) // iterating over the steps of the simulation
+	{
+
+		if( // check whether the particle belongs to 1st track, is in gas, has left volume (source) and entered new vol (gas)																					
+			_eve->getSD()->getvisuhitv()->at(step).getTrackID()       == _trackID                &&
+			_eve->getSD()->getvisuhitv()->at(step).getMaterial()      == "tracking_gas" 		 
+		  )
+		{
+			return step;
+		}
+	}
+	return -1; //return -1 if the particle never left source foil (happens when we get "fakeItTillYouMakeIt events")
+}
+
 
 TVector3* get_vertex_vector(MiEvent*  _eve, string _position, int _trackID) // returns the step position of the hit_step when it first enters tracking gas
 {
@@ -83,6 +100,7 @@ bool is_same_calo_gid(MiGID* cdGID,  MiGID* sdGID )
 	return false;
 }
 
+
 ////////////// MAIN BLOCK OF CODE
 /////////////////////////////////////////////////////////////
 void Job23()
@@ -98,8 +116,8 @@ void Job23()
 ////////////// Initialize variables to be saved
 /////////////////////////////////////////////////////////////
 	float_t   phi, p1XEscaped, p1YEscaped, p1ZEscaped, p2XEscaped, p2YEscaped, p2ZEscaped;
-	float_t   x1Reconstructed, y1Reconstructed, z1Reconstructed, x2Reconstructed, y2Reconstructed, z2Reconstructed;
 	float_t   x1Simulated, y1Simulated, z1Simulated, x2Simulated, y2Simulated, z2Simulated;
+	float_t   x1Reconstructed, y1Reconstructed, z1Reconstructed, x2Reconstructed, y2Reconstructed, z2Reconstructed;
 
 
 	TVector3 p1Escaped;
@@ -198,8 +216,8 @@ void Job23()
 						simulatedEnergy2	+= SDCaloHit.getE();
 					}
 				}
-				
 
+				
 				TVector3* r1Reconstructed = get_vertex_vector(eve, "source foil", 0);  	// position vector of the foil vertex
 				TVector3* r2Reconstructed = get_vertex_vector(eve, "source foil", 1);
 				TVector3* r1AtOM = get_vertex_vector(eve, "calo", 0);     			// position vector where electron hits OM. Tracklength is calculated as sqrt(r1Reconstructed^2 + r1AtOM^2)
@@ -211,6 +229,15 @@ void Job23()
 				x2Reconstructed = r2Reconstructed->X();
 				y2Reconstructed = r2Reconstructed->Y();
 				z2Reconstructed = r2Reconstructed->Z();
+
+
+				x1Simulated = eve->getSD()->getpart(0)->getr()->getX();
+				y1Simulated = eve->getSD()->getpart(0)->getr()->getY();
+				z1Simulated = eve->getSD()->getpart(0)->getr()->getZ();
+				x2Simulated = eve->getSD()->getpart(1)->getr()->getX();
+				y2Simulated = eve->getSD()->getpart(1)->getr()->getY();
+				z2Simulated = eve->getSD()->getpart(1)->getr()->getZ();
+
 
 				p1XEscaped = r1AtOM->X() - r1Reconstructed->X(); // x-coordinate of vector pointing in the direction of electron's travel
 				p1YEscaped = r1AtOM->Y() - r1Reconstructed->Y();
