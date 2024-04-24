@@ -453,7 +453,7 @@ end
 # ╔═╡ c0b85bdc-e7d4-4197-ad34-8a3806582db4
 pdyAbs=let
 	gr()
-	theme(:dao, fontfamily="serif")
+	theme(:dao)
 	p=plot(widen=:false,label="",title=L"dy \equiv |y1 - y2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
 	fExp(x) = step(h1dyAbs.edges[1])*nrow(df)*pdf(Exponential(l_dyAbs),x)
 	q1 = round(quantile(Exponential(l_dyAbs), 0.6827), sigdigits=3)
@@ -470,7 +470,7 @@ end
 # ╔═╡ 0397b7e7-8fe9-49a7-b1f5-2473f7e9d9b2
 pdzAbs=let
 	gr()
-	theme(:dao, fontfamily="serif")
+	theme(:dao)
 	p=plot(widen=:false,label="",title=L"dz \equiv |z1 - z2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
 	fExp(x) = step(h1dzAbs.edges[1])*nrow(df)*pdf(Exponential(l_dzAbs),x)
 	q1 = round(quantile(Exponential(l_dzAbs), 0.6827), sigdigits=3)
