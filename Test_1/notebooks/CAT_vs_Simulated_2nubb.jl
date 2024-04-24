@@ -180,7 +180,7 @@ end
 let
 	p1 = plot(h1dy, xlabel = "dy / mm", ylabel ="counts / $(bw) mm", label ="", c=1, legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT vs Simulation dy")
 	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / $(bw) mm", label ="", c=2,legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT vs Simulation dz")
-	p3 = histogram2d(df.dy, df.dz, bins = (-240:bw:240,-240:bw:240), aspect =1, xlabel ="dy", ylabel="dz", title="2D Histogram", colorbar_scale=:log10)
+	p3 = histogram2d(df.dy, df.dz, bins = (-150:bw:150,-150:bw:150), aspect =1, xlabel ="dy", ylabel="dz", title="2D Histogram", colorbar_scale=:log10)
 
 	plot(p1, p2, p3, layout=grid(2,2), size = (700,600), thickness_scaling= 1.1, dpi =200)
 	
@@ -441,6 +441,7 @@ end
 
 # ╔═╡ b317e8ea-a13f-4206-872a-ed90da5dbdc8
 let fh1z = Hist1D( df.dz; binedges= -150:bw:150 )
+	
 	theme(:dao)
 	plot(bincenters(fh1z), bincounts(fh1z), st=:stepmid, legend=:topright, label="data", c=2)
 	q1 = quantile(df.dz, [0.15865, 0.84135])
@@ -448,7 +449,7 @@ let fh1z = Hist1D( df.dz; binedges= -150:bw:150 )
 	plot!(bincenters(s1), bincounts(s1), st=:stepmid, c= 2, f=0, fa=0.4, lw =0, label="68% of data in ($(q1[1]|>round), $(q1[2]|>round)) mm")
 	xlabel!("dz [mm]")
 	ylabel!("counts / $bw mm")
-	ylims!(0, 5e4)
+	# ylims!(0, 5e4)
 end
 
 # ╔═╡ Cell order:
@@ -482,14 +483,14 @@ end
 # ╟─b18679eb-6247-4c49-8f73-7b435a2bef2a
 # ╠═885843e1-7f0a-4d6e-8321-5ac5dd16c58e
 # ╠═1130b08a-df77-4e67-bf1d-f9b49154f023
-# ╠═35d8c337-9017-4b72-9961-c21b792abdb6
-# ╠═c6274998-e9f4-4624-84e0-0bdefa67344c
-# ╠═db8739ea-de36-4e0a-8624-790edc39c606
+# ╟─35d8c337-9017-4b72-9961-c21b792abdb6
+# ╟─c6274998-e9f4-4624-84e0-0bdefa67344c
+# ╟─db8739ea-de36-4e0a-8624-790edc39c606
 # ╠═ae57ded6-e27f-429a-b484-91d3605ef9bd
-# ╠═0136ddcf-9d79-44de-be73-3ff66ee19728
+# ╟─0136ddcf-9d79-44de-be73-3ff66ee19728
 # ╠═c61f17a2-e5a7-49fc-8045-0a9376896aff
 # ╠═0a984258-1fb9-4159-9bb6-0293175d4744
-# ╠═b1d94a2f-84ce-4de2-b8e2-e188c5c9019d
+# ╟─b1d94a2f-84ce-4de2-b8e2-e188c5c9019d
 # ╠═32bff16a-ad4c-4d3f-a064-60b5d9086c32
 # ╠═fb25d005-a68f-426a-b0bd-2269e8c5ae31
 # ╠═e021b46f-edd3-444b-bef8-c1593e9a6963

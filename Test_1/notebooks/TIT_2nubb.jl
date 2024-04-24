@@ -28,6 +28,15 @@ end
 # ╔═╡ 8d855d70-1557-49ae-b995-bd8d4cf7a455
 html"<button onclick='present()'>present</button>"
 
+# ╔═╡ c6572c84-de77-40e1-9ca4-d9e72f73ac76
+html"""
+<style>
+  main {
+    max-width: 950px;
+  }
+</style>
+"""
+
 # ╔═╡ e4e23a9c-cfbd-467b-a3a5-f2477fc66531
 md"""
 # Initiate packages and load data.
@@ -44,7 +53,7 @@ default(size = (600, 400), fontfamily="serif", legend=:outerright)
 
 # ╔═╡ aed436eb-08ba-47af-9379-f0417b2636d6
 # load root file
-f2nu = ROOTFile("../data/CAT/bb2nu/CAT_bb2nu_1M_events.root")
+f2nu = ROOTFile("../data/TrackIT/bb2nu/TIT_bb2nu_1M_events.root")
 
 # ╔═╡ 384fedb4-db7e-401d-9b1c-0f83ce6b6070
 md"""
@@ -156,17 +165,16 @@ begin
 end
 
 # ╔═╡ 26b0aaf0-a9b3-4b65-894f-07d54d19f0a2
-with(pythonplot()) do
-	theme(:dao, fontfamily="serif")
-
-	p1 = plot(h1dy, xlabel = "dy / mm", ylabel ="counts / $(bw) mm", label ="", c=1, legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT dy")
-	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / $(bw) mm", label ="", c=2,legend=:outertop, lw = ifelse(bw==1, 0, 1), title="CAT dz")
+with(pythonplot()) do 
+	theme(:dao; fontfamily="serif")
+	p1 = plot(h1dy, xlabel = "dy / mm", ylabel ="counts / $(bw) mm", label ="", c=1, legend=:outertop, lw = ifelse(bw==1, 0, 0.05*bw), title="TIT dy")
+	p2 = plot(h1dz, xlabel = "dz / mm", ylabel ="counts / $(bw) mm", label ="", c=2,legend=:outertop, lw = ifelse(bw==1, 0, 0.05*bw), title="TIT dz")
 	p3 = histogram2d(df.dy, df.dz, bins = (-240:bw:240,-240:bw:240), aspect =1, xlabel ="dy", ylabel="dz", title="2D Histogram", colorbar_scale=:log10)
 
-	p=plot(p1, p2, p3, layout=grid(2,2), size = (700,600), thickness_scaling= 1.1, dpi =200)
+	p = plot(p1, p2, p3, layout=grid(2,2), size = (700,600), thickness_scaling= 1.1, dpi =200)
 	
-	savefig(p,"../plots/CAT_2nubb.png")
-	p
+	savefig(p, "../plots/TIT_2nubb.png")
+	current()
 end
 
 # ╔═╡ f1335a10-8219-46f8-84ee-61c923efa0bd
@@ -364,7 +372,7 @@ with(gr()) do
 	ylims!(0, 1.3*maximum(h1dy.weights))
 	xlabel!("dy [mm]")
 	ylabel!("counts / $(bw) mm")
-	savefig(p,"../plots/CAT_dy_fit.png" )
+	savefig(p, "../plots/TIT_dy_fit.png" )
 	p
 end
 
@@ -404,81 +412,81 @@ with(gr()) do
 	ylims!(0, 1.3*maximum(h1dz.weights))
 	xlabel!("dy [mm]")
 	ylabel!("counts / $(bw) mm")
-	savefig( "../plots/CAT_dz_fit.png" )
+	savefig(p, "../plots/TIT_dz_fit.png" )
 	p
 end
 
-# ╔═╡ d2697d47-bdbc-47da-82e4-415f42147dd4
+# ╔═╡ 0af1a061-05f8-4a70-a8c5-abe54c0e7170
 begin
 	df.dyAbs = abs.( df.y1Reconstructed .- df.y2Reconstructed )
 	df.dzAbs = abs.( df.z1Reconstructed .- df.z2Reconstructed )
 end
 
-# ╔═╡ bab0447c-391c-4707-bd70-17441e8e63b3
+# ╔═╡ 7b094836-c9e4-4a51-a5f3-a41762942a0e
 begin
 	h1dyAbs = StatsBase.fit(Histogram, df.dyAbs,0:bw:200)
 	h1dzAbs = StatsBase.fit(Histogram, df.dzAbs,0:bw:200)
 end
 
-# ╔═╡ f9bc16cf-831d-472a-849c-dbb9b96d0688
+# ╔═╡ 3d2bebc8-1b2a-4a82-bcff-68d921f7db9d
 @model function modelExp(d)
 	lambda ~ Uniform(1e-3, 1e3)
 
 	d .~ Exponential(lambda)
 end
 
-# ╔═╡ 22a6cc27-f4f0-4699-b6b4-fd0076add2c3
+# ╔═╡ bcdf7c56-a0f9-43f4-b3ff-6d48393ff124
 begin
 	chain_dy_E = Turing.sample(modelExp(df.dyAbs), NUTS(0.65), 1000)
 	chain_dz_E = Turing.sample(modelExp(df.dyAbs), NUTS(0.65), 1000)
 end
 
-# ╔═╡ 2916da4b-8459-4d44-b4ec-669e8d6f235e
+# ╔═╡ 5e53595d-4c89-4ce7-b1f4-40d72723f5b1
 plot(chain_dz_E)
 
-# ╔═╡ 0efbb013-9749-4467-a669-fc57a9482ae5
+# ╔═╡ 9f09aa68-39fc-4e5f-9c5d-23745bab288c
 begin
 	l_dyAbs = mean(chain_dy_E[:lambda])
 	l_dzAbs = mean(chain_dz_E[:lambda])
 end
 
-# ╔═╡ 452b97bf-d625-4f99-be71-d44248fcaa86
+# ╔═╡ c0b85bdc-e7d4-4197-ad34-8a3806582db4
 pdyAbs=let
-	theme(:dao)
-	p=plot(widen=:false,label="",size(1200,600),title=L"dy \equiv |y1 - y2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
+	gr()
+	theme(:dao, fontfamily="serif")
+	p=plot(widen=:false,label="",title=L"dy \equiv |y1 - y2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
 	fExp(x) = step(h1dyAbs.edges[1])*nrow(df)*pdf(Exponential(l_dyAbs),x)
 	q1 = round(quantile(Exponential(l_dyAbs), 0.6827), sigdigits=3)
 	r2Exp = r2(fExp, h1dyAbs)
-	plot!(h1dyAbs, label="data", legendtitle="Exponential fit: "* L"p(x)=\lambda e^{-\lambda x}",st=:step, fa=0.3, f=0, lw=3)
-	plot!(0:1:200, x->fExp(x), label="λ = $(round(l_dyAbs,sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=3)
+	plot!(h1dyAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, fa=0.3, f=0, lw=3)
+	plot!(0:1:200, x->fExp(x), label="λ = $(round(l_dyAbs,sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=3,size(1200,600),)
 	xlabel!("dy [mm]")
 	ylabel!("counts / $bw mm")
-	savefig(p, "../plots/CAT_dyAbs_fit.png" )
+	savefig(p, "../plots/TIT_dyAbs_fit.png" )
 	
 	p
 end
 
-# ╔═╡ 475ac140-784a-43dd-bb75-1056f09ec5bb
+# ╔═╡ 0397b7e7-8fe9-49a7-b1f5-2473f7e9d9b2
 pdzAbs=let
-	theme(:dao)
-	p=plot(title=L"dz \equiv |z1 - z2|" )
+	gr()
+	theme(:dao, fontfamily="serif")
+	p=plot(widen=:false,label="",title=L"dz \equiv |z1 - z2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
 	fExp(x) = step(h1dzAbs.edges[1])*nrow(df)*pdf(Exponential(l_dzAbs),x)
 	q1 = round(quantile(Exponential(l_dzAbs), 0.6827), sigdigits=3)
 	
 	r2Exp = r2(fExp, h1dzAbs)
-	plot!(h1dzAbs, label="data",legendtitle="Exponential fit")
+	plot!(h1dzAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, fa=0.3, f=0, lw=3)
 	plot!(0:1:200, x->fExp(x), label="λ = $(round(l_dzAbs,sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=3)
 	xlabel!("dz [mm]")
 	ylabel!("counts / $bw mm")
-	savefig(p, "../plots/CAT_dzAbs_fit.png" )
+	savefig(p, "../plots/TIT_dzAbs_fit.png" )
 	p
 end
 
-# ╔═╡ c3afb7da-1b01-4878-b4fc-3a4d089746ce
-h1dyAbs.weights
-
 # ╔═╡ Cell order:
 # ╟─8d855d70-1557-49ae-b995-bd8d4cf7a455
+# ╟─c6572c84-de77-40e1-9ca4-d9e72f73ac76
 # ╟─e4e23a9c-cfbd-467b-a3a5-f2477fc66531
 # ╠═6b9feb78-371e-446d-83ca-cc0da8c65526
 # ╠═c9e89e94-1185-42c9-bab2-02628fb7b481
@@ -529,12 +537,11 @@ h1dyAbs.weights
 # ╠═9fb1af4d-f75b-4349-9c0c-e2ed59a26c7c
 # ╟─34eb944c-93d5-4503-8d93-8c80e244a906
 # ╠═76988721-9948-4bc3-819a-de1e62827010
-# ╠═d2697d47-bdbc-47da-82e4-415f42147dd4
-# ╠═bab0447c-391c-4707-bd70-17441e8e63b3
-# ╠═f9bc16cf-831d-472a-849c-dbb9b96d0688
-# ╠═22a6cc27-f4f0-4699-b6b4-fd0076add2c3
-# ╠═2916da4b-8459-4d44-b4ec-669e8d6f235e
-# ╠═0efbb013-9749-4467-a669-fc57a9482ae5
-# ╠═452b97bf-d625-4f99-be71-d44248fcaa86
-# ╠═475ac140-784a-43dd-bb75-1056f09ec5bb
-# ╠═c3afb7da-1b01-4878-b4fc-3a4d089746ce
+# ╠═0af1a061-05f8-4a70-a8c5-abe54c0e7170
+# ╠═7b094836-c9e4-4a51-a5f3-a41762942a0e
+# ╠═3d2bebc8-1b2a-4a82-bcff-68d921f7db9d
+# ╠═bcdf7c56-a0f9-43f4-b3ff-6d48393ff124
+# ╠═5e53595d-4c89-4ce7-b1f4-40d72723f5b1
+# ╠═9f09aa68-39fc-4e5f-9c5d-23745bab288c
+# ╠═c0b85bdc-e7d4-4197-ad34-8a3806582db4
+# ╠═0397b7e7-8fe9-49a7-b1f5-2473f7e9d9b2
