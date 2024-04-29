@@ -25,6 +25,9 @@ begin
 	using PlutoUI, UnROOT, DataFrames, StatsPlots, FHist, StatsBase, Distributions, Turing, LinearAlgebra, Optim, LaTeXStrings, Measurements
 end
 
+# ╔═╡ 399bea02-2ca3-45c4-ad09-520e339b3c7c
+using HypothesisTests
+
 # ╔═╡ 8d855d70-1557-49ae-b995-bd8d4cf7a455
 html"<button onclick='present()'>present</button>"
 
@@ -144,7 +147,7 @@ md"""
 """
 
 # ╔═╡ 1759b08f-ce37-4e87-b0dd-cfe6f05a3989
-slider = @bind bw Slider(vcat(1, collect(5:5:20)), default = 5)
+slider = @bind bw Slider(vcat(1, collect(5:5:20)), default = 1)
 
 # ╔═╡ 52b1a9aa-dfc5-4e25-aa22-8771e0a2ba0c
 md"""
@@ -239,18 +242,18 @@ md"""
 # ╔═╡ f8636e78-b7b8-460e-9fac-21640d1293cf
 begin
 	# sample with metropolis-hastings, we create 10^4 samples per chain, 4 chains:
-	chain_dy_L = Turing.sample(model_Laplace(df.dy), MH(), 1000);
-	chain_dy_C = Turing.sample(model_Cauchy(df.dy), MH(), 1000);
-	chain_dy_N = Turing.sample(model_Normal(df.dy), MH(), 1000);
+	chain_dy_L = Turing.sample(model_Laplace(df.dy), NUTS(0.65), 1000);
+	chain_dy_C = Turing.sample(model_Cauchy(df.dy), NUTS(0.65), 1000);
+	chain_dy_N = Turing.sample(model_Normal(df.dy), NUTS(0.65), 1000);
 	nothing # to show no output
 end
 
 # ╔═╡ f9d85343-f5f0-4ed1-bfe5-5747e39d677e
 begin
 	# sample with metropolis-hastings, we create 10^4 samples per chain, 4 chains:
-	chain_dz_L = Turing.sample(model_Laplace(df.dz), MH(), 1000);
-	chain_dz_C = Turing.sample(model_Cauchy(df.dz), MH(), 1000);
-	chain_dz_N = Turing.sample(model_Normal(df.dz), MH(), 1000);
+	chain_dz_L = Turing.sample(model_Laplace(df.dz),NUTS(0.65), 1000);
+	chain_dz_C = Turing.sample(model_Cauchy(df.dz),NUTS(0.65), 1000);
+	chain_dz_N = Turing.sample(model_Normal(df.dz),NUTS(0.65), 1000);
 	nothing # to show no output
 end
 
@@ -437,8 +440,8 @@ end
 
 # ╔═╡ bcdf7c56-a0f9-43f4-b3ff-6d48393ff124
 begin
-	chain_dy_E = Turing.sample(modelExp(df.dyAbs), NUTS(0.65), 1000)
-	chain_dz_E = Turing.sample(modelExp(df.dyAbs), NUTS(0.65), 1000)
+	chain_dy_E = Turing.sample(modelExp(df.dyAbs), NUTS(500,0.65), 1000)
+	chain_dz_E = Turing.sample(modelExp(df.dzAbs), NUTS(500,0.65), 1000)
 end
 
 # ╔═╡ 5e53595d-4c89-4ce7-b1f4-40d72723f5b1
@@ -452,14 +455,15 @@ end
 
 # ╔═╡ c0b85bdc-e7d4-4197-ad34-8a3806582db4
 pdyAbs=let
-	gr()
-	theme(:dao)
-	p=plot(widen=:false,label="",title=L"dy \equiv |y1 - y2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
+	pythonplot()
+	theme(:dao, fontfamily="serif")
+	p=plot(widen=:false,label="",title=L"dz \equiv |z1 - z2|", legend=:outerright, legend_column=1, thickness_scaling=1.2, yscale=:log10)
 	fExp(x) = step(h1dyAbs.edges[1])*nrow(df)*pdf(Exponential(l_dyAbs),x)
 	q1 = round(quantile(Exponential(l_dyAbs), 0.6827), sigdigits=3)
 	r2Exp = r2(fExp, h1dyAbs)
-	plot!(h1dyAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, fa=0.3, f=0, lw=3)
-	plot!(0:1:200, x->fExp(x), label="λ = $(round(l_dyAbs,sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=3,size(1200,600),)
+	plot!(h1dyAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, lw=1)
+	plot!(0:1:200, x->fExp(x), label="λ = $(round(inv(l_dyAbs),sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=1,size(1200,600),)
+	ylims!(1e-1, 1e5)
 	xlabel!("dy [mm]")
 	ylabel!("counts / $bw mm")
 	savefig(p, "../plots/TIT_dyAbs_fit.png" )
@@ -469,20 +473,100 @@ end
 
 # ╔═╡ 0397b7e7-8fe9-49a7-b1f5-2473f7e9d9b2
 pdzAbs=let
-	gr()
-	theme(:dao)
-	p=plot(widen=:false,label="",title=L"dz \equiv |z1 - z2|", legend=:outerright, legend_column=1, thickness_scaling=1.2)
+	pythonplot()
+	theme(:dao, fontfamily="serif")
+	p=plot(widen=:false,label="",title=L"dz \equiv |z1 - z2|", legend=:outerright, legend_column=1, thickness_scaling=1.2, yscale=:log10)
 	fExp(x) = step(h1dzAbs.edges[1])*nrow(df)*pdf(Exponential(l_dzAbs),x)
 	q1 = round(quantile(Exponential(l_dzAbs), 0.6827), sigdigits=3)
 	
 	r2Exp = r2(fExp, h1dzAbs)
-	plot!(h1dzAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, fa=0.3, f=0, lw=3)
-	plot!(0:1:200, x->fExp(x), label="λ = $(round(l_dzAbs,sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=3)
+	plot!(h1dzAbs, label="data", legendtitle="Exponential fit: \n"* L"p(x)=\lambda e^{-\lambda x}",st=:step, lw=1)
+	plot!(0:1:200, x->fExp(x), label="λ = $(round(inv(l_dzAbs),sigdigits=3))\nr2 = $(round(r2Exp, sigdigits=3) )\n68% CI: (0,$q1)mm", lw=1)
+	ylims!(1e-1, 1e5)
 	xlabel!("dz [mm]")
 	ylabel!("counts / $bw mm")
 	savefig(p, "../plots/TIT_dzAbs_fit.png" )
 	p
 end
+
+# ╔═╡ 88ad7634-3a98-4108-a21f-a9b4eb1af983
+function fit_plot( hist, dist, fit_range; kwargs... )
+	pythonplot()
+	theme(:dao, fontfamily="serif", legend=:outerright)
+	f(x) = step(hist.edges[1])*sum(hist.weights)*pdf(dist,x)
+	
+	q1 = round(quantile(dist, 0.6827), sigdigits=3)
+	
+	r2Exp = round(r2(f, hist), sigdigits=3)
+	fᵢ = f.(midpoints(hist.edges[1]))
+	oᵢ = hist.weights
+	chisq = sum( (fᵢ .- oᵢ ).^2 ./fᵢ  )   |> round
+	ndof = length(hist.weights)
+	
+	p=plot(hist, label="data", st=:step, lw=1; kwargs...)
+	plot!(fit_range, x->f(x), label="fit")
+	plot!( 1, lw=0, label="r² = $r2Exp \nCI 68% in (0, $q1) mm \n" *L"\chi^2/ndf" *" = $chisq/$ndof")
+	plot!( 1, lw=0, label="fit params: $(round.([ p for p in params(dist) ], sigdigits=3))")
+	ylims!(1e-1, 1.3*maximum(hist.weights))
+	return p
+end
+
+# ╔═╡ d3f9ab46-3528-4530-8278-ca3215009aa9
+fit_plot!( p, hist, dist, fit_range; kwargs... ) = plot!(p, fit_plot(hist, dist, fit_range; kwargs...))
+
+# ╔═╡ 671a8d95-8689-4f1a-a90f-9f53d891e15d
+function residuals_plot( hist, dist; kwargs... )
+	pythonplot()
+	theme(:dao, fontfamily="serif", widen=:false)
+	p = plot(;kwargs)
+		
+	fit_func(x) = step(hist.edges[1])*sum(hist.weights)*pdf(dist,x)
+	residuals = (hist.weights .- fit_func(midpoints(hist.edges[1])) ) ./  hist.weights
+	yerr =  sqrt.( inv.(hist.weights) .+ inv.( fit_func(midpoints(hist.edges[1])) ) )
+	scatter!(residuals, ms=3, c=2, label="ratio", msw=0, thickness_scaling=1.3; kwargs...)
+	plot!(x->0, ribbon= yerr, lw=0, label="1σ", legend=:topleft, fa= 0.4)
+	plot!(x->0, ribbon= 2 .* yerr, lw=0, label="2σ", legend=:topleft, fa=0.4)
+	return p
+end
+
+# ╔═╡ 95b3ada0-fea2-4abd-8873-92e0cd13c6c9
+let 
+	p1= fit_plot( h1dzAbs, Exponential(l_dyAbs), 0:1:200; title="fit Exponential dz", yscale=:log10, widen=:false, ylabel="counts / $bw mm",)
+	p2= residuals_plot(h1dzAbs, Exponential(l_dyAbs); ylabel = L"\frac{data-fit}{data}", xlabel="dzAbs",legend=:outerright )
+	plot(p1, p2, legend=:outerright, layout= @layout [a ;b{0.3h}])
+end
+
+# ╔═╡ 431e03cc-4dfa-434f-91c1-183d6055240b
+function residuals_plot!(p, hist, dist; kwargs... )
+	plot!(p, residuals_plot( hist, dist; kwargs... ))
+end
+
+# ╔═╡ 7f50512c-0dc9-478b-a402-39c7669a0a3b
+begin
+	fExpdz(x) = step(h1dzAbs.edges[1])*nrow(df)*pdf(Exponential(l_dzAbs),x)
+	residuals_plot( h1dzAbs, Exponential(l_dzAbs))
+end
+
+# ╔═╡ 1dba2744-6158-4383-aa48-f4f1e910689e
+ApproximateOneSampleKSTest(h1dyAbs.weights, Exponential(l_dyAbs))
+
+# ╔═╡ 8ce8cc0d-646c-4bd6-b4ee-e1794b102cc6
+plot(cdf(Exponential(l_dyAbs), 0.0:250))
+
+# ╔═╡ 37ba4efd-ef88-4d4c-8eea-2ef804b8e6c6
+ecdfplot!(df.dyAbs)
+
+# ╔═╡ dbd33e4a-7e09-4a28-9930-58a9e2cb3eac
+ExactOneSampleKSTest(h1dyAbs.weights, Exponential(l_dyAbs))
+
+# ╔═╡ 1d90c76e-122e-4d17-9781-585a6b583c8f
+fdyL(x) = step(h1dy.edges[1])*nrow(df)*fit_function_L( mu_dy_L, sigma_dy_L, x)
+
+# ╔═╡ 541c0b08-b218-42af-a470-c18966ad2730
+ExactOneSampleKSTest(df.dy, Laplace(mu_dy_L, sigma_dy_L))
+
+# ╔═╡ b4de21f0-dcbf-4404-ace0-9c5a58c1d124
+df_1 = filter(row -> row.dz == 0, df)
 
 # ╔═╡ Cell order:
 # ╟─8d855d70-1557-49ae-b995-bd8d4cf7a455
@@ -545,3 +629,17 @@ end
 # ╠═9f09aa68-39fc-4e5f-9c5d-23745bab288c
 # ╠═c0b85bdc-e7d4-4197-ad34-8a3806582db4
 # ╠═0397b7e7-8fe9-49a7-b1f5-2473f7e9d9b2
+# ╠═d3f9ab46-3528-4530-8278-ca3215009aa9
+# ╠═88ad7634-3a98-4108-a21f-a9b4eb1af983
+# ╠═95b3ada0-fea2-4abd-8873-92e0cd13c6c9
+# ╠═431e03cc-4dfa-434f-91c1-183d6055240b
+# ╠═671a8d95-8689-4f1a-a90f-9f53d891e15d
+# ╠═7f50512c-0dc9-478b-a402-39c7669a0a3b
+# ╠═399bea02-2ca3-45c4-ad09-520e339b3c7c
+# ╠═1dba2744-6158-4383-aa48-f4f1e910689e
+# ╠═8ce8cc0d-646c-4bd6-b4ee-e1794b102cc6
+# ╠═37ba4efd-ef88-4d4c-8eea-2ef804b8e6c6
+# ╠═dbd33e4a-7e09-4a28-9930-58a9e2cb3eac
+# ╠═1d90c76e-122e-4d17-9781-585a6b583c8f
+# ╠═541c0b08-b218-42af-a470-c18966ad2730
+# ╠═b4de21f0-dcbf-4404-ace0-9c5a58c1d124
