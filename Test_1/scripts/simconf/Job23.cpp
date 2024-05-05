@@ -10,11 +10,28 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 R__LOAD_LIBRARY(/pbs/home/m/mpetro/PROGRAMS/MiModule/lib/libMiModule.so);
 
 ////////////// Function used in script
 /////////////////////////////////////////////////////////////
+int first_step_in_gas(MiEvent*  _eve, int _trackID) // returns the step position of the hit_step when it first enters tracking gas
+{
+	for (int step = 0; step < _eve->getSD()->getvisuhitv()->size() ; step++) // iterating over the steps of the simulation
+	{
+
+		if( // check whether the particle belongs to 1st track, is in gas, has left volume (source) and entered new vol (gas)																					
+			_eve->getSD()->getvisuhitv()->at(step).getTrackID()       == _trackID                &&
+			_eve->getSD()->getvisuhitv()->at(step).getMaterial()      == "tracking_gas" 		 
+		  )
+		{
+			return step;
+		}
+	}
+	return -1; //return -1 if the particle never left source foil (happens when we get "fakeItTillYouMakeIt events")
+}
+
 
 TVector3* get_vertex_vector(MiEvent*  _eve, string _position, int _trackID) // returns the step position of the hit_step when it first enters tracking gas
 {
@@ -83,6 +100,7 @@ bool is_same_calo_gid(MiGID* cdGID,  MiGID* sdGID )
 	return false;
 }
 
+
 ////////////// MAIN BLOCK OF CODE
 /////////////////////////////////////////////////////////////
 void Job23()
@@ -98,7 +116,8 @@ void Job23()
 ////////////// Initialize variables to be saved
 /////////////////////////////////////////////////////////////
 	float_t   phi, p1XEscaped, p1YEscaped, p1ZEscaped, p2XEscaped, p2YEscaped, p2ZEscaped;
-	float_t   x1Escaped, y1Escaped, z1Escaped, x2Escaped, y2Escaped, z2Escaped;
+	float_t   x1Simulated, y1Simulated, z1Simulated, x2Simulated, y2Simulated, z2Simulated;
+	float_t   x1Reconstructed, y1Reconstructed, z1Reconstructed, x2Reconstructed, y2Reconstructed, z2Reconstructed;
 
 
 	TVector3 p1Escaped;
@@ -123,12 +142,19 @@ void Job23()
 	tree->Branch("trackLength1", &trackLength1, "trackLength1/f");
 	tree->Branch("trackLength2", &trackLength2, "trackLength2/f");
 
-	tree->Branch("x1Escaped", &x1Escaped, "x1Escaped/f");
-	tree->Branch("y1Escaped", &y1Escaped, "y1Escaped/f");
-	tree->Branch("z1Escaped", &z1Escaped, "z1Escaped/f");
-	tree->Branch("x2Escaped", &x2Escaped, "x2Escaped/f");
-	tree->Branch("y2Escaped", &y2Escaped, "y2Escaped/f");
-	tree->Branch("z2Escaped", &z2Escaped, "z2Escaped/f");
+	tree->Branch("x1Simulated", &x1Simulated, "x1Simulated/f");
+	tree->Branch("y1Simulated", &y1Simulated, "y1Simulated/f");
+	tree->Branch("z1Simulated", &z1Simulated, "z1Simulated/f");
+	tree->Branch("x2Simulated", &x2Simulated, "x2Simulated/f");
+	tree->Branch("y2Simulated", &y2Simulated, "y2Simulated/f");
+	tree->Branch("z2Simulated", &z2Simulated, "z2Simulated/f");
+
+	tree->Branch("x1Reconstructed", &x1Reconstructed, "x1Reconstructed/f");
+	tree->Branch("y1Reconstructed", &y1Reconstructed, "y1Reconstructed/f");
+	tree->Branch("z1Reconstructed", &z1Reconstructed, "z1Reconstructed/f");
+	tree->Branch("x2Reconstructed", &x2Reconstructed, "x2Reconstructed/f");
+	tree->Branch("y2Reconstructed", &y2Reconstructed, "y2Reconstructed/f");
+	tree->Branch("z2Reconstructed", &z2Reconstructed, "z2Reconstructed/f");
 
 
 ////////////// Initialize counters
@@ -190,34 +216,43 @@ void Job23()
 						simulatedEnergy2	+= SDCaloHit.getE();
 					}
 				}
-				
 
-				TVector3* r1Escaped = get_vertex_vector(eve, "source foil", 0);  	// position vector of the foil vertex
-				TVector3* r2Escaped = get_vertex_vector(eve, "source foil", 1);
-				TVector3* r1AtOM = get_vertex_vector(eve, "calo", 0);     			// position vector where electron hits OM. Tracklength is calculated as sqrt(r1Escaped^2 + r1AtOM^2)
+				
+				TVector3* r1Reconstructed = get_vertex_vector(eve, "source foil", 0);  	// position vector of the foil vertex
+				TVector3* r2Reconstructed = get_vertex_vector(eve, "source foil", 1);
+				TVector3* r1AtOM = get_vertex_vector(eve, "calo", 0);     			// position vector where electron hits OM. Tracklength is calculated as sqrt(r1Reconstructed^2 + r1AtOM^2)
 				TVector3* r2AtOM = get_vertex_vector(eve, "calo", 1);  
 
-				x1Escaped = r1Escaped->X();
-				y1Escaped = r1Escaped->Y();
-				z1Escaped = r1Escaped->Z();
-				x2Escaped = r2Escaped->X();
-				y2Escaped = r2Escaped->Y();
-				z2Escaped = r2Escaped->Z();
+				x1Reconstructed = r1Reconstructed->X();
+				y1Reconstructed = r1Reconstructed->Y();
+				z1Reconstructed = r1Reconstructed->Z();
+				x2Reconstructed = r2Reconstructed->X();
+				y2Reconstructed = r2Reconstructed->Y();
+				z2Reconstructed = r2Reconstructed->Z();
 
-				p1XEscaped = r1AtOM->X() - r1Escaped->X(); // x-coordinate of vector pointing in the direction of electron's travel
-				p1YEscaped = r1AtOM->Y() - r1Escaped->Y();
-				p1ZEscaped = r1AtOM->Z() - r1Escaped->Z();
-				p2XEscaped = r2AtOM->X() - r2Escaped->X();
-				p2YEscaped = r2AtOM->Y() - r2Escaped->Y();
-				p2ZEscaped = r2AtOM->Z() - r2Escaped->Z();
+
+				x1Simulated = eve->getSD()->getpart(0)->getr()->getX();
+				y1Simulated = eve->getSD()->getpart(0)->getr()->getY();
+				z1Simulated = eve->getSD()->getpart(0)->getr()->getZ();
+				x2Simulated = eve->getSD()->getpart(1)->getr()->getX();
+				y2Simulated = eve->getSD()->getpart(1)->getr()->getY();
+				z2Simulated = eve->getSD()->getpart(1)->getr()->getZ();
+
+
+				p1XEscaped = r1AtOM->X() - r1Reconstructed->X(); // x-coordinate of vector pointing in the direction of electron's travel
+				p1YEscaped = r1AtOM->Y() - r1Reconstructed->Y();
+				p1ZEscaped = r1AtOM->Z() - r1Reconstructed->Z();
+				p2XEscaped = r2AtOM->X() - r2Reconstructed->X();
+				p2YEscaped = r2AtOM->Y() - r2Reconstructed->Y();
+				p2ZEscaped = r2AtOM->Z() - r2Reconstructed->Z();
 
 				p1Escaped = TVector3(p1XEscaped, p1YEscaped, p1ZEscaped);  // This is implemented in MiModule by MP 
 				p2Escaped = TVector3(p2XEscaped, p2YEscaped, p2ZEscaped);  // Momentum is returned as TVector3
 
 				phi   = p1Escaped.Angle(p2Escaped)*180/TMath::Pi();
 
-				trackLength1 = get_distance(r1Escaped, r1AtOM);
-				trackLength2 = get_distance(r2Escaped, r2AtOM);
+				trackLength1 = get_distance(r1Reconstructed, r1AtOM);
+				trackLength2 = get_distance(r2Reconstructed, r2AtOM);
 
 				tree->Fill();
 
