@@ -4,3 +4,6 @@ Test_1/notebooks/.ipynb_checkpoints
 Test_2/*
 
 Test_3/data/*/*.brio
+
+Test_4/*/*.brio
+Test_4/*/*.root
